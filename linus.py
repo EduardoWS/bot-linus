@@ -1,4 +1,5 @@
 import discord
+from discord import user
 from discord.channel import DMChannel
 from discord.ext.commands.core import dm_only
 import wikipedia
@@ -186,7 +187,7 @@ async def p(ctx, *, search):
 # ====== JOGO DA FORCA ======
 @client.command()
 async def mudarid(ctx, idf):
-    if ctx.channel.name == 'teste-bots':
+    if ctx.channel.name == 'teste-bots' or ctx.channel.name == 'linus-teste-bot' or ctx.channel.name == 'linus-ia' or ctx.channel.name == '🗨chat':
         conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
         cur = conn.cursor()
         cur.execute("UPDATE idforca SET id = %s", (idf, ))
@@ -200,7 +201,7 @@ async def mudarid(ctx, idf):
 @client.command()
 async def forca(ctx, member1: discord.Member, member2: discord.Member=None, member3: discord.Member=None):
     
-    if ctx.channel.name == 'teste-bots':
+    if ctx.channel.name == 'teste-bots' or ctx.channel.name == 'linus-teste-bot' or ctx.channel.name == 'linus-ia' or ctx.channel.name == '🤖・bots' or ctx.channel.name == '🤖・comandos' or ctx.channel.name == '🗨chat':
         conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
         cur = conn.cursor()
         cur.execute("SELECT id FROM idforca")
@@ -212,25 +213,79 @@ async def forca(ctx, member1: discord.Member, member2: discord.Member=None, memb
                     await ctx.send(f'Você não pode jogar com você mesmo, seu solitário.')
                     return
                 else:
-                    cur.execute("UPDATE idforca SET id = 1")
-                    conn.commit()
-                    await ctx.send(f'{member1.mention} aguarde o **{ctx.author.name}** escolher uma palavra!')
+                    
+                    confirm = await ctx.send('Clique em ✅ para confirmar a partida.')
+                    await confirm.add_reaction('✅')
+                    
+
+                    def check3(reaction, user):
+
+                        if user == member1 and str(reaction.emoji) == '✅':
+                            return check3
+                            
+
+                    try:
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+                    except asyncio.TimeoutError:
+                        await ctx.send('Parece que alguém não reagiu. **Cancelando partida...**')
+                        return False
+                    else:
+                        
+                        await ctx.send(f'{member1.mention} aguarde o **{ctx.author.name}** escolher uma palavra!')
+    
+                        cur.execute("UPDATE idforca SET id = 1")
+                        conn.commit()
+
+
             elif member2 != None and member3 == None:
                 if ctx.author.id == member1.id or ctx.author.id == member2.id:
                     await ctx.send(f'Você não pode jogar com você mesmo, seu solitário.')
                     return
                 else:
-                    cur.execute("UPDATE idforca SET id = 1")
-                    conn.commit()
-                    await ctx.send(f'{member1.mention} e {member2.mention} aguardem o **{ctx.author.name}** escolher uma palavra!')
+                    confirm = await ctx.send('Cliquem em ✅ para confirmar a partida.')
+                    await confirm.add_reaction('✅')
+                    def check3(reaction, user):
+
+                        return user == member1 or (user == member2) and str(reaction.emoji) == '✅'
+
+                    try:
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+                    except asyncio.TimeoutError:
+                        await ctx.send('Parece que alguém não reagiu. **Cancelando partida...**')
+                        return False
+
+                    else:
+                        cur.execute("UPDATE idforca SET id = 1")
+                        conn.commit()
+                        await ctx.send(f'{member1.mention} e {member2.mention} aguardem o **{ctx.author.name}** escolher uma palavra!')
+
+
             elif member3 != None:
                 if ctx.author.id == member1.id or ctx.author.id == member2.id or ctx.author.id == member3.id:
                     await ctx.send(f'Você não pode jogar com você mesmo, seu solitário.')
                     return
                 else:
-                    cur.execute("UPDATE idforca SET id = 1")
-                    conn.commit()
-                    await ctx.send(f'{member1.mention}, {member2.mention} e {member3.mention} aguardem o **{ctx.author.name}** escolher uma palavra!')
+                    confirm = await ctx.send('Cliquem em ✅ para confirmar a partida.')
+                    await confirm.add_reaction('✅')
+                    def check3(reaction, user):
+
+                        return user == member1 or (user == member2) or (user == member3) and str(reaction.emoji) == '✅'
+
+                    try:
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+                        reaction, user = await client.wait_for('reaction_add', timeout=120, check=check3)
+
+                    except asyncio.TimeoutError:
+                        await ctx.send('Parece que alguém não reagiu. **Cancelando partida...**')
+                        return False
+
+                    else:
+                        cur.execute("UPDATE idforca SET id = 1")
+                        conn.commit()
+                        await ctx.send(f'{member1.mention}, {member2.mention} e {member3.mention} aguardem o **{ctx.author.name}** escolher uma palavra!')
+                        
 
             escolhas = client.get_user(ctx.author.id)
             await escolhas.send('Escolha uma palavra:')
@@ -238,23 +293,39 @@ async def forca(ctx, member1: discord.Member, member2: discord.Member=None, memb
             def check(message):
                 if message.author == ctx.author and not message.guild:
                     return check 
+            def check4(reaction, user):
+
+                return user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '⛔')
+            
+
             try:
                 palavra = await client.wait_for('message', check=check, timeout=180)
                 palavra = palavra.content.upper()
                 await escolhas.send('Agora digite uma dica:')
                 dica = await client.wait_for('message', check=check, timeout=180)
                 dica = dica.content.upper()
+
+                confirm2 = await escolhas.send('\✅ - confirmar\n\⛔ - cancelar')
+                await confirm2.add_reaction('✅')
+                await confirm2.add_reaction('⛔')
+                reaction, user = await client.wait_for('reaction_add', timeout=30, check=check4)
+
+                if not user.bot and str(reaction.emoji) == '⛔':
+                    cur.execute("UPDATE idforca SET id = 0")
+                    conn.commit()
+                    await escolhas.send('**Cancelando...**\nColoque o comando `-forca @user` novamente no canal adequado.')
+                    return
+
                 
-            except:
+            except asyncio.TimeoutError:
                 cur.execute("UPDATE idforca SET id = 0")
                 conn.commit()
                 await escolhas.send('Tempo expirado. Coloque o comando `-forca @user` novamente no canal adequado.')
-                return
+                return False
             
             
             
-            cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
-            conn.commit()
+            
             
             
             
@@ -345,10 +416,84 @@ A palavra que o(a) {ctx.author.mention} escolheu foi:
 ` {spc}`
 
 **USE `-forca @user` PARA COMEÇAR OUTRO JOGO**
+
+Feedback da partida:
                         '''
                     )
                         emb.set_thumbnail(url='https://cdn.discordapp.com/attachments/843496086089629716/863886769882923009/hangman-game-og-share.png')
-                        await ctx.send(embed=emb)
+                        p = await ctx.send(embed=emb)
+                        await p.add_reaction('👍')
+                        await p.add_reaction('👎')
+
+                        if member2 == None:
+                            valid_users = [member1.id]
+                        elif member2 != None and member3 == None:
+                            valid_users = [member1.id, member2.id]
+                        else:
+                            valid_users = [member1.id, member2.id, member3.id]
+                        valid_reactions = ['✅', '👍', '👎']
+                        def check5(reaction, user):
+
+                            return user.id in valid_users and str(reaction.emoji) in valid_reactions
+
+
+                        band_m = 0
+                        try:
+                            if member2 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 and str(reaction.emoji) == '👍':
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            elif member2 != None and member3 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                    
+                                if band_m == 2:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+
+
+                            elif member3 != None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                    
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                   
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    
+                                    band_m += 1
+
+                                if band_m == 3:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                           
+
+                        except asyncio.TimeoutError:
+                            cur.execute("UPDATE idforca SET id = 0")
+                            conn.commit()
+                            return False
+
                         cur.execute("UPDATE idforca SET id = 0")
                         conn.commit()
                         break
@@ -398,13 +543,92 @@ A palavra que o(a) {ctx.author.mention} escolheu foi:
 ` {spc}`
 
 VIDAS: {h}
+
+Feedback da partida:
                     '''
                 )
                         emb.set_thumbnail(url='https://cdn.discordapp.com/attachments/843496086089629716/863886769882923009/hangman-game-og-share.png')
-                        await ctx.send(embed=emb)
+                        p = await ctx.send(embed=emb)
+                        await p.add_reaction('👍')
+                        await p.add_reaction('👎')
+                        
+
+                        if member2 == None:
+                            valid_users = [member1.id]
+                        elif member2 != None and member3 == None:
+                            valid_users = [member1.id, member2.id]
+                        else:
+                            valid_users = [member1.id, member2.id, member3.id]
+                        valid_reactions = ['✅', '👍', '👎']
+                        def check5(reaction, user):
+
+                            return user.id in valid_users and str(reaction.emoji) in valid_reactions
+
+
+                        band_m = 0
+                        try:
+                            if member2 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 and str(reaction.emoji) == '👍':
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            elif member2 != None and member3 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                if band_m == 2:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+
+
+                            elif member3 != None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                    
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                   
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    
+                                    band_m += 1
+
+                                if band_m == 3:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                           
+
+                        except asyncio.TimeoutError:
+                            cur.execute("UPDATE idforca SET id = 0")
+                            conn.commit()
+                            return False
+
                         cur.execute("UPDATE idforca SET id = 0")
                         conn.commit()
                         break
+
+
+
+
+
                     else:
                         spc = ''
                         for n in range(1, len(palavra) + 1):
@@ -419,10 +643,83 @@ A palavra que o(a) {ctx.author.mention} escolheu foi:
 Lembre-se que se errar o chute você perde!!
 
 **USE `-forca @user` PARA COMEÇAR OUTRO JOGO**
+
+Feedback da partida:
                     '''
                     )
                         emb.set_thumbnail(url='https://cdn.discordapp.com/attachments/843496086089629716/863886769882923009/hangman-game-og-share.png')
-                        await ctx.send(embed=emb)
+                        p = await ctx.send(embed=emb)
+                        await p.add_reaction('👍')
+                        await p.add_reaction('👎')
+                        
+
+                        if member2 == None:
+                            valid_users = [member1.id]
+                        elif member2 != None and member3 == None:
+                            valid_users = [member1.id, member2.id]
+                        else:
+                            valid_users = [member1.id, member2.id, member3.id]
+                        valid_reactions = ['✅', '👍', '👎']
+                        def check5(reaction, user):
+
+                            return user.id in valid_users and str(reaction.emoji) in valid_reactions
+
+
+                        band_m = 0
+                        try:
+                            if member2 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 and str(reaction.emoji) == '👍':
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            elif member2 != None and member3 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                if band_m == 2:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+
+
+                            elif member3 != None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                    
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                   
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    
+                                    band_m += 1
+
+                                if band_m == 3:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                           
+
+                        except asyncio.TimeoutError:
+                            cur.execute("UPDATE idforca SET id = 0")
+                            conn.commit()
+                            return False
                         cur.execute("UPDATE idforca SET id = 0")
                         conn.commit()
                         break
@@ -470,10 +767,83 @@ A palavra que o(a) {ctx.author.mention} escolheu foi:
 ` {spc}`
 
 **USE `!forca @user` PARA COMEÇAR OUTRO JOGO**
+
+Feedback da partida:
                         '''
                     )
                         emb.set_thumbnail(url='https://cdn.discordapp.com/attachments/843496086089629716/863886769882923009/hangman-game-og-share.png')
-                        await ctx.send(embed=emb)
+                        p = await ctx.send(embed=emb)
+                        await p.add_reaction('👍')
+                        await p.add_reaction('👎')
+                        
+
+                        if member2 == None:
+                            valid_users = [member1.id]
+                        elif member2 != None and member3 == None:
+                            valid_users = [member1.id, member2.id]
+                        else:
+                            valid_users = [member1.id, member2.id, member3.id]
+                        valid_reactions = ['✅', '👍', '👎']
+                        def check5(reaction, user):
+
+                            return user.id in valid_users and str(reaction.emoji) in valid_reactions
+
+
+                        band_m = 0
+                        try:
+                            if member2 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 and str(reaction.emoji) == '👍':
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            elif member2 != None and member3 == None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                if band_m == 2:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+
+
+                            elif member3 != None:
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                    
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    band_m += 1
+                                   
+                                reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                                if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    
+                                    band_m += 1
+
+                                if band_m == 3:
+                                    cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                    conn.commit()
+                                    await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                                else:
+                                    
+                                    await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                           
+
+                        except asyncio.TimeoutError:
+                            cur.execute("UPDATE idforca SET id = 0")
+                            conn.commit()
+                            return False
                         cur.execute("UPDATE idforca SET id = 0")
                         conn.commit()
                         break
@@ -493,10 +863,83 @@ A palavra que o(a) {ctx.author.mention} escolheu foi:
 ` {spc}`
 
 VIDAS: {h}
+
+Feedback da partida:
                     '''
                 )
                     emb.set_thumbnail(url='https://cdn.discordapp.com/attachments/843496086089629716/863886769882923009/hangman-game-og-share.png')
-                    await ctx.send(embed=emb)
+                    p = await ctx.send(embed=emb)
+                    await p.add_reaction('👍')
+                    await p.add_reaction('👎')
+                        
+
+                    if member2 == None:
+                        valid_users = [member1.id]
+                    elif member2 != None and member3 == None:
+                        valid_users = [member1.id, member2.id]
+                    else:
+                        valid_users = [member1.id, member2.id, member3.id]
+                    valid_reactions = ['✅', '👍', '👎']
+                    def check5(reaction, user):
+
+                        return user.id in valid_users and str(reaction.emoji) in valid_reactions
+
+
+                    band_m = 0
+                    try:
+                        if member2 == None:
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 and str(reaction.emoji) == '👍':
+                                cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                conn.commit()
+                                await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                        elif member2 != None and member3 == None:
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                band_m += 1
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 or (user == member2) and str(reaction.emoji) == '👍':
+                                band_m += 1
+                            if band_m == 2:
+                                cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                conn.commit()
+                                await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                            else:
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+
+
+                        elif member3 != None:
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                band_m += 1
+                                    
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                band_m += 1
+                                   
+                            reaction, user = await client.wait_for('reaction_add', timeout=15, check=check5)
+                            if user == member1 or user == member2 or user == member3 and str(reaction.emoji) == '👍':
+                                    
+                                band_m += 1
+
+                            if band_m == 3:
+                                cur.execute("INSERT INTO forca (palavra, dica) VALUES (%s, %s)", (palavra, dica))
+                                conn.commit()
+                                await ctx.send('Obrigado pelo seu feedback! Palavra e dica adicionada com sucesso.')
+                            else:
+                                    
+                                await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                            
+                        else:
+                            await ctx.send('Obrigado pelo seu feedback! As palavras não foram adicionadas.')
+                           
+
+                    except asyncio.TimeoutError:
+                        cur.execute("UPDATE idforca SET id = 0")
+                        conn.commit()
+                        return False
                     cur.execute("UPDATE idforca SET id = 0")
                     conn.commit()
                     break
@@ -527,9 +970,10 @@ VIDAS: {h}
 
 @client.command()
 async def fs(ctx):
-    if ctx.channel.name == 'teste-bots':
-        conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
-        cur = conn.cursor()
+    conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
+    cur = conn.cursor()
+    if ctx.channel.name == 'teste-bots' or ctx.channel.name == '🤖・bots' or ctx.channel.name == '🤖・comandos' or ctx.channel.name == 'linus-teste-bot':
+        
 
         cur.execute("SELECT id FROM idforca")
         ressultado_id = cur.fetchone()
