@@ -1,16 +1,18 @@
 import discord
-from discord import user
-from discord.channel import DMChannel
-from discord.ext.commands.core import dm_only
 import wikipedia
 from discord.ext import commands
-""" from chatterbot import ChatBot
-from chatterbot.trainers import ListTrainer """
-import random
-import json
-""" from googletrans import Translator """
+from chatterbot import ChatBot
+from chatterbot.trainers import ListTrainer
+from googletrans import Translator
 import asyncio
 import psycopg2 as db
+import sqlite3
+import os
+import torch
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
 
 intents = discord.Intents.default()
 intents.members = True
@@ -24,17 +26,17 @@ db_pass = ""
 
 
 
-client = commands.Bot(command_prefix = '-', case_insensitive = True, intents = intents)
+client = commands.Bot(command_prefix = '!', case_insensitive = True, intents = intents)
 
 @client.event
 async def on_ready():
     print('O LINUS ESTÁ ONLINE!')
-    """ global chatbot
+    global chatbot
     chatbot = ChatBot('Linus')
     global trainer
-    trainer = ListTrainer(chatbot) """
+    trainer = ListTrainer(chatbot)
 
-""" @client.command()
+@client.command()
 async def treinar(ctx):
     
 
@@ -70,7 +72,18 @@ async def treinar(ctx):
         'Programar, escutar música e agradecer o meu criador Berserker por ter me dado vida.'
     ])
     await ctx.send('Treinamento concluído!')
- """
+    
+
+@client.command()
+async def trad(ctx, lg=None, *, pesquisar):
+    trans = Translator()
+    if lg == None:
+        tradu = trans.translate(pesquisar, dest='pt', src='en')
+    else:
+        tradu = trans.translate(pesquisar, dest='pt', src=lg)
+    await ctx.send(tradu.text)
+
+
 @client.listen('on_message')
 async def on_message(message):
     content = message.content
@@ -85,50 +98,66 @@ async def on_message(message):
         return
 
 
-    """ elif type(message.channel) == discord.DMChannel:  #content.startswith('-') and 
+    elif type(message.channel) == discord.DMChannel:  #content.startswith('-') and 
         
-        msg = content[1:]
-        response = chatbot.get_response(msg)
-        await channel.send(response)
- """
-
+        """ msg = content[1:] """
+        if not message.author.bot:
+            response = chatbot.get_response(content)
+            await channel.send(response)
+            
     
+    elif channel.name == 'linus-gpt-2' and not message.author.bot:
+        if content.startswith('-'):
+            msg = content[1:]
+            trans = Translator()
+            tradu = trans.translate(msg, dest='en', src='pt')
+            sequence = (f'{tradu.text}')
 
+            inputs = tokenizer.encode(sequence, return_tensors='pt')
+            outputs = model.generate(inputs, max_length=300, do_sample=True, temperature=1, top_k=50)
 
-    if content == 'bom dia':
-        await channel.send(f'Mau dia, {mention}!!')
-    
-    elif content == 'fala':
-        rodar = random.randint(1, 5)
-        if rodar == 1:
-            await channel.send(f'Eae, meu chegado')
-        
-        elif rodar == 2:
-            await channel.send(f'Fala, meu compatriota')
-        
-        elif rodar == 3:
-            await channel.send(f'Não enche!!')
-        
-        elif rodar == 4:
-            await channel.send(f'Opa, como vai?')
+            text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            tradu2 = trans.translate(text, dest='pt', src='en')
+            if len(tradu2.text) > 300:
+                loc = tradu2.text[:300].rfind('.')
+                await message.channel.send(tradu2.text[:loc+1])
+            else:
+                await message.channel.send(tradu2.text)
 
-        elif rodar == 5:
-            await channel.send(f'Cara? Sem tempo...')
-        
+ 
+    elif channel.name == 'linus-ia' and not message.author.bot:
 
-    elif content == '-whois':
-        await channel.send('Linus Benedict Torvalds, sou um engenheiro de software, nascido na Finlândia e naturalizado estado-unidense em 2010, sou o criador, e por muito tempo fui o desenvolvedor mais importante do núcleo Linux')
+        if content.startswith('-'):
+            msg = content[1:]
+            response = chatbot.get_response(msg)
+            await channel.send(response)
+        else:
+            
+            caminho = f'{os.getcwd()}/linusTrainer.db'
+            con = sqlite3.connect(caminho)
+            cur = con.cursor()
+            
+            cur.execute("SELECT msg FROM messages")
+            resultado = cur.fetchall()
+            
+            
+            if resultado[0][0] == '0':
+                msg = content
+                cur.execute("UPDATE messages SET msg = ?", (msg, ))
+            else:
+                rsp = content
 
-    elif content == '.inforifa' and channel.name == 'teste-linus':
+                trainer.train([
+                    f'{resultado[0][0]}',
+                    f'{rsp}'
+                    ])
 
-        valores = list(range(1, 201))
-        random.shuffle(valores)
-        
-        
-        valor = json.dumps(valores, separators=(", ", " - "))
-        await channel.send(valor)
+                cur.execute("UPDATE messages SET msg = '0'")
 
-""" @client.command()
+            con.commit()
+            
+            
+@client.command()
 async def ensinar(ctx):
     await ctx.send('Faça uma pergunta:')
     def check(message):
@@ -150,7 +179,7 @@ async def ensinar(ctx):
     except:
         await ctx.send('Tempo expirado.')
     
-     """
+
 
 @client.command()
 async def p(ctx, *, search):
@@ -201,7 +230,8 @@ async def mudarid(ctx, idf):
 @client.command()
 async def forca(ctx, member1: discord.Member, member2: discord.Member=None, member3: discord.Member=None):
     
-    if ctx.channel.name == 'teste-bots' or ctx.channel.name == 'linus-teste-bot' or ctx.channel.name == 'linus-ia' or ctx.channel.name == '🤖・bots' or ctx.channel.name == '🤖・comandos' or ctx.channel.name == '🗨chat':
+    canais = ['teste-bots', '🤖・bots', '🤖・comandos', 'linus-teste-bot', '👾│bots', 'kikope-ia']
+    if ctx.channel.name in canais:
         conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
         cur = conn.cursor()
         cur.execute("SELECT id FROM idforca")
@@ -963,7 +993,7 @@ Feedback da partida:
         else:
             await ctx.send(f'{ctx.author.mention} já estão jogando comigo! Por favor, aguarde o jogo terminar.')
     else:
-        await ctx.send('Canal errado bobinho(a)')
+        await ctx.send('Canal errado, bobinho(a)')
     cur.close()
     conn.close()
 
@@ -972,7 +1002,8 @@ Feedback da partida:
 async def fs(ctx):
     conn = db.connect(dbname=db_name, user=db_user, host=db_host, password=db_pass)
     cur = conn.cursor()
-    if ctx.channel.name == 'teste-bots' or ctx.channel.name == '🤖・bots' or ctx.channel.name == '🤖・comandos' or ctx.channel.name == 'linus-teste-bot':
+    canais = ['teste-bots', '🤖・bots', '🤖・comandos', 'linus-teste-bot', '👾│bots', 'kikope-ia']
+    if ctx.channel.name in canais:
         
 
         cur.execute("SELECT id FROM idforca")
@@ -1205,16 +1236,8 @@ VIDAS: {h}
     conn.close()
 
 
-""" @client.command()
-async def trad(ctx, lg=None, *, pesquisar):
-    trans = Translator()
-    if lg == None:
-        tradu = trans.translate(pesquisar, dest='pt', src='en')
-    else:
-        tradu = trans.translate(pesquisar, dest='pt', src=lg)
-    await ctx.send(tradu.text) """
 
-
+#============================================================================
 
 
 
