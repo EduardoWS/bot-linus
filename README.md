@@ -1,2 +1,2 @@
 # bot-linus
-Bot de testes
+Bot para testes com Inteligência Artificial.
